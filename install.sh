@@ -10,15 +10,41 @@ if ! command -v python3 &>/dev/null; then
     exit 1
 fi
 
+# Check if git is available
+if ! command -v git &>/dev/null; then
+    echo "❌ Git is required for installation"
+    exit 1
+fi
+
+# Clone repository to hidden folder
+INSTALL_DIR="$HOME/.ask-cli-install"
+echo "📥 Cloning repository to $INSTALL_DIR..."
+
+# Remove existing installation directory if it exists
+if [ -d "$INSTALL_DIR" ]; then
+    rm -rf "$INSTALL_DIR"
+fi
+
+# Clone the repository
+if ! git clone https://github.com/sjdpk/ask-cli.git "$INSTALL_DIR" &>/dev/null; then
+    echo "❌ Failed to clone repository"
+    exit 1
+fi
+
+# Change to the cloned directory
+cd "$INSTALL_DIR"
+
+echo "✅ Repository cloned successfully"
+
 # Check if ask script exists
 if [ ! -f "ask" ]; then
-    echo "❌ ask script not found in current directory"
+    echo "❌ ask script not found in repository"
     exit 1
 fi
 
 # Check if src directory exists
 if [ ! -d "src" ]; then
-    echo "❌ src directory not found"
+    echo "❌ src directory not found in repository"
     exit 1
 fi
 
@@ -36,6 +62,11 @@ mkdir -p ~/.local/bin
 cp -r src ~/.local/bin/ask-src
 cp ask ~/.local/bin/ask
 chmod +x ~/.local/bin/ask
+
+# Clean up the cloned repository
+echo "🧹 Cleaning up..."
+cd /
+rm -rf "$INSTALL_DIR"
 
 # Check if ~/.local/bin is in PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
