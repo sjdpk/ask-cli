@@ -21,14 +21,14 @@ $ ask compress this folder
 
 ```bash
 # Download and install
-curl -sSL https://raw.githubusercontent.com/yourusername/ask-cli/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/install.sh | bash
 ```
 
 ### Manual Install
 
 ```bash
 # Clone repo
-git clone https://github.com/yourusername/ask-cli.git
+git clone https://github.com/sjdpk/ask-cli.git
 cd ask-cli
 
 # Run installer
