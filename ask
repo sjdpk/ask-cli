@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Ask CLI entry point script"""
+
+import sys
+from pathlib import Path
+
+# Add src directory to Python path
+script_dir = Path(__file__).parent.resolve()
+src_dir = script_dir / "src"
+sys.path.insert(0, str(src_dir))
+
+# Import and run main
+try:
+    from main import main
+except ImportError:
+    # Fallback for installed version
+    src_dir = Path.home() / ".local" / "bin" / "ask-src"
+    sys.path.insert(0, str(src_dir))
+    from main import main
+
+if __name__ == "__main__":
+    main()
