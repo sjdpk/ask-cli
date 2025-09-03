@@ -13,16 +13,34 @@ def main():
         print("Try:   ask list all files")
         print("       ask --help")
         sys.exit(1)
+
+    # Check for --execute or -e flag and --force or -f flag
+    execute = False
+    force = False
     
+    if '--execute' in sys.argv:
+        sys.argv.remove('--execute')
+        execute = True
+    elif '-e' in sys.argv:
+        sys.argv.remove('-e')
+        execute = True
+    
+    if '--force' in sys.argv:
+        sys.argv.remove('--force')
+        force = True
+    elif '-f' in sys.argv:
+        sys.argv.remove('-f')
+        force = True
+
     # Handle special commands
     if sys.argv[1] in ['-h', '--help', 'help']:
         handle_help()
     elif sys.argv[1] == '--reset':
         handle_reset()
-    
+
     # Handle regular query
     query = ' '.join(sys.argv[1:])
-    handle_query(query)
+    handle_query(query, execute, force)
 
 
 if __name__ == "__main__":
