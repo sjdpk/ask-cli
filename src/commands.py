@@ -52,13 +52,40 @@ def handle_reset():
     sys.exit(0)
 
 
-def show_progress(message, duration=2):
-    """Show a progress indicator with dots"""
-    print(f"{message}", end="", flush=True)
-    for _ in range(duration * 4):  # 4 dots per second
-        print(".", end="", flush=True)
-        time.sleep(0.25)
-    print(" Done!")  # Complete the line
+def show_update_spinner():
+    """Show a dynamic spinner for update process with changing text"""
+    import threading
+    
+    class UpdateSpinner:
+        def __init__(self):
+            self.spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+            self.current_text = "Loading"
+            self.stop_event = threading.Event()
+            self.spinner_thread = None
+            
+        def _spin(self):
+            i = 0
+            while not self.stop_event.is_set():
+                char = self.spinner_chars[i % len(self.spinner_chars)]
+                print(f"\r{char} {self.current_text}...", end="", flush=True)
+                time.sleep(0.1)
+                i += 1
+                
+        def start(self):
+            self.spinner_thread = threading.Thread(target=self._spin)
+            self.spinner_thread.daemon = True
+            self.spinner_thread.start()
+            
+        def update_text(self, new_text):
+            self.current_text = new_text
+            
+        def stop(self, final_text="Complete"):
+            self.stop_event.set()
+            if self.spinner_thread:
+                self.spinner_thread.join(timeout=0.3)
+            print(f"\r✓ {final_text}!                    ")
+            
+    return UpdateSpinner()
 
 
 def validate_command_safety(ai_response):
@@ -92,9 +119,17 @@ def handle_update():
         sys.exit(1)
     
     try:
+        # Start the dynamic spinner
+        spinner = show_update_spinner()
+        spinner.start()
+        
         # Create a temporary directory for the update
         with tempfile.TemporaryDirectory() as temp_dir:
-            show_progress("Downloading latest version", 3)
+            # Phase 1: Loading/Preparing
+            time.sleep(0.5)  # Brief loading phase
+            
+            # Phase 2: Downloading
+            spinner.update_text("Downloading")
             
             # Clone the latest version to temp directory
             result = subprocess.run([
@@ -102,16 +137,20 @@ def handle_update():
             ], capture_output=True, text=True)
             
             if result.returncode != 0:
+                spinner.stop("Failed")
                 print("Error: Failed to download latest version from GitHub")
                 sys.exit(1)
             
             # Check if src directory exists in the downloaded version
             new_src_dir = os.path.join(temp_dir, 'src')
             if not os.path.exists(new_src_dir):
+                spinner.stop("Failed")
                 print("Error: Invalid repository structure")
                 sys.exit(1)
             
-            show_progress("Installing updated version", 2)
+            # Phase 3: Updating
+            spinner.update_text("Updating")
+            time.sleep(0.5)  # Brief pause to show updating text
             
             # Remove current installation and copy new version
             shutil.rmtree(install_dir)
@@ -125,9 +164,14 @@ def handle_update():
                 shutil.copy2(new_ask_script, ask_script_path)
                 os.chmod(ask_script_path, 0o755)
             
-            print("Ask CLI updated successfully!")
+            # Complete
+            spinner.stop("Ask CLI updated successfully")
             
     except Exception as e:
+        try:
+            spinner.stop("Failed")
+        except:
+            pass
         print(f"Update failed: {e}")
         print("Please try running the install script again if issues persist.")
         sys.exit(1)
