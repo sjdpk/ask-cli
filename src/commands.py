@@ -6,6 +6,7 @@ import subprocess
 import os
 import shutil
 import tempfile
+import time
 from config import load_api_key, setup_api_key, reset_config
 from ai import CommandGenerator
 from ui import SpinnerContext
@@ -47,26 +48,33 @@ def handle_reset():
     sys.exit(0)
 
 
+def show_progress(message, duration=2):
+    """Show a progress indicator with dots"""
+    print(f"{message}", end="", flush=True)
+    for _ in range(duration * 4):  # 4 dots per second
+        print(".", end="", flush=True)
+        time.sleep(0.25)
+    print(" Done!")  # Complete the line
+
+
 def handle_update():
     """Update ask CLI to the latest version"""
-    print("🔄 Updating ask CLI...")
-    
     # Check if git is available
     if not shutil.which('git'):
-        print("❌ Git is required for updating. Please install git and try again.")
+        print("Error: Git is required for updating. Please install git and try again.")
         sys.exit(1)
     
-    # Get the installation directory (where the current script is located)
+    # Get the installation directory
     install_dir = os.path.expanduser("~/.local/bin/ask-src")
     
     if not os.path.exists(install_dir):
-        print("❌ Installation directory not found. Please reinstall using the install script.")
+        print("Error: Installation directory not found. Please reinstall using the install script.")
         sys.exit(1)
     
     try:
         # Create a temporary directory for the update
         with tempfile.TemporaryDirectory() as temp_dir:
-            print("📥 Downloading latest version...")
+            show_progress("Downloading latest version", 3)
             
             # Clone the latest version to temp directory
             result = subprocess.run([
@@ -74,30 +82,19 @@ def handle_update():
             ], capture_output=True, text=True)
             
             if result.returncode != 0:
-                print("❌ Failed to download latest version from GitHub")
-                print(f"Error: {result.stderr}")
+                print("Error: Failed to download latest version from GitHub")
                 sys.exit(1)
             
             # Check if src directory exists in the downloaded version
             new_src_dir = os.path.join(temp_dir, 'src')
             if not os.path.exists(new_src_dir):
-                print("❌ Invalid repository structure")
+                print("Error: Invalid repository structure")
                 sys.exit(1)
             
-            print("📂 Backing up current installation...")
+            show_progress("Installing updated version", 2)
             
-            # Create backup of current installation
-            backup_dir = install_dir + '.backup'
-            if os.path.exists(backup_dir):
-                shutil.rmtree(backup_dir)
-            shutil.copytree(install_dir, backup_dir)
-            
-            print("📦 Installing updated version...")
-            
-            # Remove current installation
+            # Remove current installation and copy new version
             shutil.rmtree(install_dir)
-            
-            # Copy new version
             shutil.copytree(new_src_dir, install_dir)
             
             # Copy the main ask script
@@ -108,25 +105,11 @@ def handle_update():
                 shutil.copy2(new_ask_script, ask_script_path)
                 os.chmod(ask_script_path, 0o755)
             
-            # Remove backup if update was successful
-            if os.path.exists(backup_dir):
-                shutil.rmtree(backup_dir)
-            
-            print("✅ Ask CLI updated successfully!")
-            print("🎉 You're now running the latest version.")
+            print("Ask CLI updated successfully!")
             
     except Exception as e:
-        print(f"❌ Update failed: {e}")
-        
-        # Restore backup if it exists
-        backup_dir = install_dir + '.backup'
-        if os.path.exists(backup_dir):
-            print("🔄 Restoring previous version...")
-            if os.path.exists(install_dir):
-                shutil.rmtree(install_dir)
-            shutil.move(backup_dir, install_dir)
-            print("✅ Previous version restored.")
-        
+        print(f"Update failed: {e}")
+        print("Please try running the install script again if issues persist.")
         sys.exit(1)
     
     sys.exit(0)
@@ -134,7 +117,7 @@ def handle_update():
 
 def get_user_confirmation(command):
     """Ask user for confirmation before executing a command"""
-    print(f"\n💡 Generated command: {command}")
+    print(f"\nGenerated command: {command}")
     while True:
         response = input("Do you want to execute this command? [y/N]: ").strip().lower()
         if response in ['y', 'yes']:
@@ -166,12 +149,12 @@ def execute_command(command):
         process.wait()
 
         if process.returncode == 0:
-            print("\n✅ Command executed successfully.")
+            print("\nCommand executed successfully.")
         else:
-            print(f"\n⚠️ Command failed with exit code {process.returncode}.")
+            print(f"\nCommand failed with exit code {process.returncode}.")
 
     except Exception as e:
-        print(f"❌ Error executing command: {e}")
+        print(f"Error executing command: {e}")
 
 
 def handle_query(query, execute=False, force=False):
@@ -200,11 +183,11 @@ def handle_query(query, execute=False, force=False):
                 if get_user_confirmation(command_to_execute):
                     execute_command(command_to_execute)
                 else:
-                    print("❌ Command execution cancelled.")
+                    print("Command execution cancelled.")
             else:
                 # Force execution without confirmation
                 execute_command(command_to_execute)
         else:
-            print("🤔 No command generated to execute.")
+            print("No command generated to execute.")
     else:
         print(result)
