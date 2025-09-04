@@ -2,7 +2,7 @@
 """Main entry point for ask CLI"""
 
 import sys
-from commands import handle_help, handle_reset, handle_query
+from commands import handle_help, handle_reset, handle_update, handle_query
 
 
 def main():
@@ -37,6 +37,8 @@ def main():
         handle_help()
     elif sys.argv[1] == '--reset':
         handle_reset()
+    elif sys.argv[1] == '--update':
+        handle_update()
 
     # Handle regular query
     query = ' '.join(sys.argv[1:])

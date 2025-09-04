@@ -56,6 +56,7 @@ ask compress folder                   # → tar -czf archive.tar.gz folder
 ```bash
 ask --help      # Show help information
 ask --reset     # Reset your API key
+ask --update    # Update to the latest version
 ```
 
 ## Setup
@@ -65,6 +66,16 @@ ask --reset     # Reset your API key
 3. **Enter your API key** when prompted
 
 That's it!
+
+## Updating
+
+Keep your Ask CLI up to date with the latest features and improvements:
+
+```bash
+ask --update
+```
+
+This command will automatically download and install the latest version from GitHub while preserving your configuration.
 
 ## License
 

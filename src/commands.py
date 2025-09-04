@@ -4,6 +4,8 @@
 import sys
 import subprocess
 import os
+import shutil
+import tempfile
 from config import load_api_key, setup_api_key, reset_config
 from ai import CommandGenerator
 from ui import SpinnerContext
@@ -29,6 +31,7 @@ Options:
   -f, --force     Force execution without confirmation (must be used with -e)
   --help          Show this help
   --reset         Reset API key
+  --update        Update ask CLI to the latest version
 """
 
 
@@ -41,6 +44,91 @@ def handle_help():
 def handle_reset():
     """Reset API key configuration"""
     reset_config()
+    sys.exit(0)
+
+
+def handle_update():
+    """Update ask CLI to the latest version"""
+    print("🔄 Updating ask CLI...")
+    
+    # Check if git is available
+    if not shutil.which('git'):
+        print("❌ Git is required for updating. Please install git and try again.")
+        sys.exit(1)
+    
+    # Get the installation directory (where the current script is located)
+    install_dir = os.path.expanduser("~/.local/bin/ask-src")
+    
+    if not os.path.exists(install_dir):
+        print("❌ Installation directory not found. Please reinstall using the install script.")
+        sys.exit(1)
+    
+    try:
+        # Create a temporary directory for the update
+        with tempfile.TemporaryDirectory() as temp_dir:
+            print("📥 Downloading latest version...")
+            
+            # Clone the latest version to temp directory
+            result = subprocess.run([
+                'git', 'clone', 'https://github.com/sjdpk/ask-cli.git', temp_dir
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print("❌ Failed to download latest version from GitHub")
+                print(f"Error: {result.stderr}")
+                sys.exit(1)
+            
+            # Check if src directory exists in the downloaded version
+            new_src_dir = os.path.join(temp_dir, 'src')
+            if not os.path.exists(new_src_dir):
+                print("❌ Invalid repository structure")
+                sys.exit(1)
+            
+            print("📂 Backing up current installation...")
+            
+            # Create backup of current installation
+            backup_dir = install_dir + '.backup'
+            if os.path.exists(backup_dir):
+                shutil.rmtree(backup_dir)
+            shutil.copytree(install_dir, backup_dir)
+            
+            print("📦 Installing updated version...")
+            
+            # Remove current installation
+            shutil.rmtree(install_dir)
+            
+            # Copy new version
+            shutil.copytree(new_src_dir, install_dir)
+            
+            # Copy the main ask script
+            new_ask_script = os.path.join(temp_dir, 'ask')
+            ask_script_path = os.path.expanduser("~/.local/bin/ask")
+            
+            if os.path.exists(new_ask_script):
+                shutil.copy2(new_ask_script, ask_script_path)
+                os.chmod(ask_script_path, 0o755)
+            
+            # Remove backup if update was successful
+            if os.path.exists(backup_dir):
+                shutil.rmtree(backup_dir)
+            
+            print("✅ Ask CLI updated successfully!")
+            print("🎉 You're now running the latest version.")
+            
+    except Exception as e:
+        print(f"❌ Update failed: {e}")
+        
+        # Restore backup if it exists
+        backup_dir = install_dir + '.backup'
+        if os.path.exists(backup_dir):
+            print("🔄 Restoring previous version...")
+            if os.path.exists(install_dir):
+                shutil.rmtree(install_dir)
+            shutil.move(backup_dir, install_dir)
+            print("✅ Previous version restored.")
+        
+        sys.exit(1)
+    
     sys.exit(0)
 
 
