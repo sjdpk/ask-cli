@@ -251,6 +251,16 @@ def handle_query(query, execute=False, force=False):
     with SpinnerContext():
         result = generator.get_command(query)
 
+    # Check if the response indicates out of context
+    if "out of context" in result.lower():
+        print(result)
+        return
+
+    # Check if response looks like a valid command response
+    if not result.startswith("→") and "→" not in result:
+        print("Out of context - this is not a terminal command request")
+        return
+
     # Find the line with the command
     command_to_execute = ""
     for line in result.split('\n'):
@@ -274,7 +284,7 @@ def handle_query(query, execute=False, force=False):
                     print("Executing anyway due to --force flag...")
                 execute_command(command_to_execute)
         else:
-            print("No command generated to execute.")
+            print("No valid command found to execute.")
     else:
         # Show result (warnings are already included in AI response)
         print(result)
