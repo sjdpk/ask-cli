@@ -33,6 +33,10 @@ Options:
   --help          Show this help
   --reset         Reset API key
   --update        Update ask CLI to the latest version
+
+Safety:
+  Ask CLI automatically detects potentially dangerous commands and shows
+  warnings before execution to help protect your system and data.
 """
 
 
@@ -55,6 +59,22 @@ def show_progress(message, duration=2):
         print(".", end="", flush=True)
         time.sleep(0.25)
     print(" Done!")  # Complete the line
+
+
+def validate_command_safety(ai_response):
+    """Check if AI response contains safety warnings"""
+    lines = ai_response.strip().split('\n')
+    
+    for line in lines:
+        if line.strip().startswith('⚠️'):
+            # Extract warning message (remove the warning emoji and clean up)
+            warning_text = line.replace('⚠️', '').strip()
+            return {
+                'is_dangerous': True,
+                'warning': warning_text
+            }
+    
+    return {'is_dangerous': False}
 
 
 def handle_update():
@@ -115,17 +135,35 @@ def handle_update():
     sys.exit(0)
 
 
-def get_user_confirmation(command):
+def get_user_confirmation(command, ai_response):
     """Ask user for confirmation before executing a command"""
     print(f"\nGenerated command: {command}")
-    while True:
-        response = input("Do you want to execute this command? [y/N]: ").strip().lower()
-        if response in ['y', 'yes']:
-            return True
-        elif response in ['n', 'no', '']:
-            return False
-        else:
-            print("Please enter 'y' for yes or 'n' for no.")
+    
+    # Check if AI response contains safety warnings
+    validation_result = validate_command_safety(ai_response)
+    
+    if validation_result['is_dangerous']:
+        print(f"\n WARNING: {validation_result['warning']}")
+        print("This command could potentially cause harm to your system or data.")
+        
+        while True:
+            response = input("Are you sure you want to execute this command? [y/N]: ").strip().lower()
+            if response in ['y', 'yes']:
+                return True
+            elif response in ['n', 'no', '']:
+                return False
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
+    else:
+        # Normal confirmation for safe commands
+        while True:
+            response = input("Do you want to execute this command? [y/N]: ").strip().lower()
+            if response in ['y', 'yes']:
+                return True
+            elif response in ['n', 'no', '']:
+                return False
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
 
 
 def execute_command(command):
@@ -180,14 +218,19 @@ def handle_query(query, execute=False, force=False):
         if command_to_execute:
             # If force flag is not set, ask for confirmation
             if not force:
-                if get_user_confirmation(command_to_execute):
+                if get_user_confirmation(command_to_execute, result):
                     execute_command(command_to_execute)
                 else:
                     print("Command execution cancelled.")
             else:
-                # Force execution without confirmation
+                # Force execution without confirmation (but still validate for warnings)
+                validation_result = validate_command_safety(result)
+                if validation_result['is_dangerous']:
+                    print(f" WARNING: {validation_result['warning']}")
+                    print("Executing anyway due to --force flag...")
                 execute_command(command_to_execute)
         else:
             print("No command generated to execute.")
     else:
+        # Show result (warnings are already included in AI response)
         print(result)

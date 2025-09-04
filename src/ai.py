@@ -29,7 +29,7 @@ class CommandGenerator:
             )
             return response.text.strip()
         except Exception as e:
-            return f"❌ Error: {str(e)}"
+            return f"Error: {str(e)}"
     
     def _build_prompt(self, username, query):
         """Build the AI prompt for command generation"""
@@ -41,13 +41,23 @@ System: {self.os_name}
 Rules:
 1. Give the command on first line starting with →
 2. If explanation needed, add ONE line comment (max 10 words)
-3. For dangerous commands (rm -rf, etc) add: ⚠️  warning
+3. For potentially dangerous commands, add:  [brief risk description]
 4. Multiple steps: use && or ; on same line
 5. Be extremely concise - terminal users want speed
 
+IMPORTANT: Consider these as potentially dangerous and add warnings:
+- File/directory deletion (rm, rmdir with wildcards or recursive flags)
+- System modifications (sudo commands, chmod 777, ownership changes)
+- Disk operations (dd, mkfs, fdisk, partitioning)
+- Network code execution (curl|sh, wget|bash)
+- Process termination (killall, kill -9)
+- System control (shutdown, reboot, halt)
+- Database operations (DROP, TRUNCATE)
+- Overwriting files (>, redirects to important files)
+
 Format:
 → command
-(optional: super brief note)
+(optional: super brief note or warning)
 
 Examples:
 {username}: list all files
@@ -61,6 +71,10 @@ Examples:
 
 {username}: delete all .tmp files
 → find . -name "*.tmp" -delete
-⚠️  will delete all .tmp files recursively
+ deletes all .tmp files recursively
+
+{username}: remove everything in current folder
+→ rm -rf *
+ permanently deletes all files and folders
 
 NEVER add extra line breaks. Keep output compact."""

@@ -72,7 +72,7 @@ def setup_api_key():
     while True:
         key = input("2️⃣  Paste key here: ").strip()
         if not key:
-            print("\n❌ No key entered. Exiting.")
+            print("\nNo key entered. Exiting.")
             sys.exit(1)
         
         # Test the API key
@@ -83,7 +83,7 @@ def setup_api_key():
             print("✨ Setup complete! You're ready to go.\n")
             return key
         else:
-            print(" ❌\n   Invalid key. Try again.\n")
+            print(" \n   Invalid key. Try again.\n")
 
 
 def reset_config():
