@@ -32,8 +32,8 @@ def main():
         sys.argv.remove('-f')
         force = True
 
-    # Handle special commands
-    if sys.argv[1] in ['-h', '--help', 'help']:
+    # Handle special commands (only exact matches)
+    if sys.argv[1] in ['-h', '--help'] or (sys.argv[1] == 'help' and len(sys.argv) == 2):
         handle_help()
     elif sys.argv[1] == '--reset':
         handle_reset()
