@@ -1,4 +1,4 @@
-# Ask CLI 🚀
+# Ask CLI
 
 **Instant terminal commands powered by AI**
 
@@ -15,7 +15,7 @@ $ ask compress this folder
 → tar -czf archive.tar.gz .
 ```
 
-## 🚀 Installation
+## Installation
 
 ### Quick Install
 
@@ -35,7 +35,7 @@ cd ask-cli
 ./install.sh
 ```
 
-## 🎯 Usage
+## Usage
 
 ```bash
 ask <what you want to do>
@@ -51,21 +51,21 @@ ask kill process on port 3000         # → lsof -ti:3000 | xargs kill -9
 ask compress folder                   # → tar -czf archive.tar.gz folder
 ```
 
-### Help
+### Additional Commands
 
 ```bash
-ask --help      # Show help
-ask --reset     # Reset API key
+ask --help      # Show help information
+ask --reset     # Reset your API key
 ```
 
-## ⚙️ Setup
+## Setup
 
-1. **Get free API key**: https://makersuite.google.com/app/apikey
-2. **Run ask**: `ask list files`
-3. **Paste key** when prompted
+1. **Get a free API key** from Google AI Studio: https://makersuite.google.com/app/apikey
+2. **Run the ask command**: `ask list files`
+3. **Enter your API key** when prompted
 
-That's it! 🎉
+That's it!
 
-## 📝 License
+## License
 
 MIT License
