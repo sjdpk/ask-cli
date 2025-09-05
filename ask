@@ -2,6 +2,8 @@
 """Ask CLI entry point script"""
 
 import sys
+import os
+import platform
 from pathlib import Path
 
 # Add src directory to Python path
@@ -13,8 +15,13 @@ sys.path.insert(0, str(src_dir))
 try:
     from main import main
 except ImportError:
-    # Fallback for installed version
-    src_dir = Path.home() / ".local" / "bin" / "ask-src"
+    # Fallback for installed version - platform specific paths
+    system = platform.system().lower()
+    if system == 'windows':
+        src_dir = Path(os.getenv('APPDATA')) / "ask-cli" / "src"
+    else:
+        src_dir = Path.home() / ".local" / "bin" / "ask-src"
+    
     sys.path.insert(0, str(src_dir))
     from main import main
 

@@ -29,6 +29,24 @@ def get_os_name():
     return os_map.get(platform.system().lower(), platform.system())
 
 
+def get_install_dir():
+    """Get platform-specific installation directory"""
+    system = platform.system().lower()
+    if system == 'windows':
+        return Path(os.getenv('APPDATA')) / 'ask-cli' / 'src'
+    else:
+        return Path.home() / '.local' / 'bin' / 'ask-src'
+
+
+def get_executable_path():
+    """Get platform-specific executable path"""
+    system = platform.system().lower()
+    if system == 'windows':
+        return Path(os.getenv('APPDATA')) / 'Python' / 'Scripts' / 'ask.bat'
+    else:
+        return Path.home() / '.local' / 'bin' / 'ask'
+
+
 def load_api_key():
     """Load API key from config file"""
     if CONFIG_FILE.exists():

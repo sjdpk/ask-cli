@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 import time
+from pathlib import Path
 from config import load_api_key, setup_api_key, reset_config
 from ai import CommandGenerator
 from ui import SpinnerContext
@@ -20,12 +21,12 @@ Usage:
   ask --execute <what you want to do>
   ask --execute --force <what you want to do>
 
-Examples:
-  ask list all files           → ls -la
-  ask check disk space         → df -h
-  ask find text in files       → grep -r "text" .
-  ask kill port 3000          → lsof -ti:3000 | xargs kill -9
-  ask compress folder         → tar -czf archive.tar.gz .
+Examples (platform-adaptive):
+  ask list all files           → ls -la (Unix) / dir (Windows)
+  ask check disk space         → df -h (Unix) / dir (Windows)
+  ask find text in files       → grep -r "text" . (Unix) / findstr /s "text" *.* (Windows)
+  ask kill port 3000          → lsof -ti:3000 | xargs kill -9 (Unix) / netstat -ano | findstr :3000 (Windows)
+  ask compress folder         → tar -czf archive.tar.gz . (Unix) / powershell Compress-Archive (Windows)
 
 Options:
   -e, --execute   Execute the generated command (with confirmation)
@@ -33,6 +34,10 @@ Options:
   --help          Show this help
   --reset         Reset API key
   --update        Update ask CLI to the latest version
+
+Cross-Platform Support:
+  Ask CLI automatically detects your operating system (Windows, macOS, Linux)
+  and provides platform-appropriate commands.
 
 Safety:
   Ask CLI automatically detects potentially dangerous commands and shows
@@ -106,13 +111,16 @@ def validate_command_safety(ai_response):
 
 def handle_update():
     """Update ask CLI to the latest version"""
+    import platform
+    from config import get_install_dir, get_executable_path
+    
     # Check if git is available
     if not shutil.which('git'):
         print("Error: Git is required for updating. Please install git and try again.")
         sys.exit(1)
     
-    # Get the installation directory
-    install_dir = os.path.expanduser("~/.local/bin/ask-src")
+    # Get the installation directory based on platform
+    install_dir = get_install_dir()
     
     if not os.path.exists(install_dir):
         print("Error: Installation directory not found. Please reinstall using the install script.")
@@ -156,13 +164,30 @@ def handle_update():
             shutil.rmtree(install_dir)
             shutil.copytree(new_src_dir, install_dir)
             
-            # Copy the main ask script
-            new_ask_script = os.path.join(temp_dir, 'ask')
-            ask_script_path = os.path.expanduser("~/.local/bin/ask")
-            
-            if os.path.exists(new_ask_script):
-                shutil.copy2(new_ask_script, ask_script_path)
-                os.chmod(ask_script_path, 0o755)
+            # Platform-specific executable update
+            system = platform.system().lower()
+            if system == 'windows':
+                # Update Windows batch file and Python wrapper
+                scripts_dir = Path(os.getenv('APPDATA')) / 'Python' / 'Scripts'
+                local_bin = Path(os.getenv('APPDATA')) / 'ask-cli'
+                
+                # Copy Python wrapper
+                new_ask_script = os.path.join(temp_dir, 'ask')
+                if os.path.exists(new_ask_script):
+                    shutil.copy2(new_ask_script, local_bin / 'ask')
+                
+                # Recreate batch file
+                batch_content = f'@echo off\npython "{local_bin}\\ask" %*'
+                with open(scripts_dir / 'ask.bat', 'w') as f:
+                    f.write(batch_content)
+            else:
+                # Update Unix-like systems
+                new_ask_script = os.path.join(temp_dir, 'ask')
+                ask_script_path = get_executable_path()
+                
+                if os.path.exists(new_ask_script):
+                    shutil.copy2(new_ask_script, ask_script_path)
+                    os.chmod(ask_script_path, 0o755)
             
             # Complete
             spinner.stop("Ask CLI updated successfully")

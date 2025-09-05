@@ -1,8 +1,22 @@
 #!/bin/bash
 
-# Simple installer for 'ask' command
+# Cross-platform installer for 'ask' command (Unix-like systems)
 
 echo "Installing 'ask' command..."
+
+# Detect OS
+OS_NAME=$(uname -s)
+case "$OS_NAME" in
+    Darwin)
+        echo "✓ Detected macOS"
+        ;;
+    Linux)
+        echo "✓ Detected Linux"
+        ;;
+    *)
+        echo "⚠️  Detected $OS_NAME (experimental support)"
+        ;;
+esac
 
 # Check Python 3
 if ! command -v python3 &>/dev/null; then
@@ -50,18 +64,23 @@ fi
 
 # Install Python package
 echo "Installing dependencies..."
-python3 -m pip install --user -q google-generativeai 2>/dev/null || {
-    echo "Note: You may need to install manually:"
+if python3 -m pip install --user -q google-generativeai 2>/dev/null; then
+    echo "✓ Dependencies installed successfully"
+else
+    echo "⚠️  Dependency installation failed. You may need to install manually:"
     echo "   pip3 install --user google-generativeai"
-}
+    echo "   or: python3 -m pip install --user google-generativeai"
+fi
 
 # Create user's local bin directory
 mkdir -p ~/.local/bin
 
 # Copy files
+echo "Installing files..."
 cp -r src ~/.local/bin/ask-src
 cp ask ~/.local/bin/ask
 chmod +x ~/.local/bin/ask
+echo "✓ Files installed to ~/.local/bin/"
 
 # Clean up the cloned repository
 echo "Cleaning up..."
@@ -87,14 +106,14 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     export PATH="$HOME/.local/bin:$PATH"
     
     echo ""
-    echo "Installation complete!"
+    echo "✅ Installation complete!"
     echo ""
     echo "IMPORTANT: Restart your terminal or run:"
-    echo "   source ~/.bashrc  (or ~/.zshrc)"
+    echo "   source ~/.bashrc  (or ~/.zshrc for zsh)"
     echo ""
 else
     echo ""
-    echo "Installation complete!"
+    echo "✅ Installation complete!"
     echo ""
 fi
 
@@ -104,4 +123,5 @@ echo ""
 echo "Installed to: ~/.local/bin/ask"
 echo "Config: ~/.ask_config.json (created on first use)"
 echo ""
+echo "Platform: $OS_NAME"
 echo "Help: ask --help"
