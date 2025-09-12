@@ -4,19 +4,46 @@
 import sys
 from pathlib import Path
 
-# Add src directory to Python path
-script_dir = Path(__file__).parent.resolve()
-src_dir = script_dir / "src"
-sys.path.insert(0, str(src_dir))
+def main_wrapper():
+    """Wrapper with comprehensive exception handling"""
+    try:
+        # Add src directory to Python path
+        script_dir = Path(__file__).parent.resolve()
+        src_dir = script_dir / "src"
+        sys.path.insert(0, str(src_dir))
 
-# Import and run main
-try:
-    from main import main
-except ImportError:
-    # Fallback for installed version
-    src_dir = Path.home() / ".local" / "bin" / "ask-src"
-    sys.path.insert(0, str(src_dir))
-    from main import main
+        # Import and run main
+        try:
+            from main import main
+        except ImportError:
+            # Fallback for installed version
+            src_dir = Path.home() / ".local" / "bin" / "ask-src"
+            if not src_dir.exists():
+                print("➜ Ask CLI installation not found. Please reinstall using:")
+                print("   curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/install.sh | bash")
+                sys.exit(1)
+            sys.path.insert(0, str(src_dir))
+            try:
+                from main import main
+            except ImportError as e:
+                print("➜ Failed to load Ask CLI components.")
+                print("   Please reinstall using the installation script.")
+                sys.exit(1)
+
+        # Run the main application
+        main()
+        
+    except KeyboardInterrupt:
+        print("\n\n👋 Operation cancelled by user.")
+        sys.exit(0)
+    except SystemExit:
+        # Allow normal sys.exit() calls to pass through
+        raise
+    except Exception as e:
+        print(f"\n➜ Unexpected error occurred: {str(e)}")
+        print("   If this persists, please report this issue on GitHub:")
+        print("   https://github.com/sjdpk/ask-cli/issues")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    main_wrapper()

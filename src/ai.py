@@ -2,34 +2,98 @@
 """AI client for command generation"""
 
 import getpass
-import google.generativeai as genai
+import time
 from config import AI_MODEL, get_os_name
+
+# Import google.generativeai with error handling
+try:
+    import google.generativeai as genai
+except ImportError as e:
+    raise ImportError("Google Generative AI package not found. Please reinstall Ask CLI.") from e
 
 
 class CommandGenerator:
-    """AI-powered command generator"""
+    """AI-powered command generator with comprehensive error handling"""
     
     def __init__(self, api_key):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(AI_MODEL)
-        self.os_name = get_os_name()
+        """Initialize the command generator with API key validation"""
+        if not api_key or not api_key.strip():
+            raise ValueError("API key is required and cannot be empty")
+            
+        try:
+            genai.configure(api_key=api_key)
+            self.model = genai.GenerativeModel(AI_MODEL)
+            self.os_name = get_os_name()
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize AI model: {str(e)}") from e
     
     def get_command(self, query):
-        """Generate terminal command from natural language query"""
-        username = getpass.getuser()
-        prompt = self._build_prompt(username, query)
-        
+        """Generate terminal command from natural language query with comprehensive error handling"""
+        if not query or not query.strip():
+            return "➜ Please provide a valid query"
+            
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    temperature=0.1,      # More deterministic
-                    max_output_tokens=150 # Keep responses short
-                )
-            )
-            return response.text.strip()
+            username = getpass.getuser()
+            prompt = self._build_prompt(username, query)
+            
+            # Attempt to generate content with retries
+            max_retries = 3
+            retry_delay = 1
+            
+            for attempt in range(max_retries):
+                try:
+                    response = self.model.generate_content(
+                        prompt,
+                        generation_config=genai.GenerationConfig(
+                            temperature=0.1,      # More deterministic
+                            max_output_tokens=150 # Keep responses short
+                        )
+                    )
+                    
+                    if response and response.text:
+                        return response.text.strip()
+                    else:
+                        return "➜ AI service returned empty response. Please try again."
+                        
+                except Exception as e:
+                    error_str = str(e).lower()
+                    
+                    # Handle specific API errors with user-friendly messages
+                    if "api_key" in error_str or "authentication" in error_str or "invalid" in error_str:
+                        return "➜ Invalid API key. Run 'ask --reset' to update your API key."
+                    elif "quota" in error_str or "limit" in error_str:
+                        return "➜ API quota exceeded. Please check your Google AI Studio quota or try again later."
+                    elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
+                        if attempt < max_retries - 1:
+                            print(f"🔄 Network issue, retrying... (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2  # Exponential backoff
+                            continue
+                        return "➜ Network connection failed. Please check your internet connection and try again."
+                    elif "rate" in error_str:
+                        if attempt < max_retries - 1:
+                            print(f"⏳ Rate limited, waiting... (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(retry_delay * 2)
+                            retry_delay *= 2
+                            continue
+                        return "➜ Too many requests. Please wait a moment and try again."
+                    else:
+                        if attempt < max_retries - 1:
+                            print(f"⚠️ Request failed, retrying... (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(retry_delay)
+                            continue
+                        return f"➜ AI service error: {str(e)}"
+            
+            return "➜ Failed to generate command after multiple attempts. Please try again later."
+            
+        except KeyboardInterrupt:
+            return "➜ Operation cancelled by user"
         except Exception as e:
-            return f"Error: {str(e)}"
+            error_str = str(e).lower()
+            if "permission" in error_str:
+                return "➜ Permission denied. Please check your system permissions."
+            else:
+                return f"➜ Unexpected error: {str(e)}"
     
     def _build_prompt(self, username, query):
         """Build the AI prompt for command generation"""
