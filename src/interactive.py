@@ -66,15 +66,9 @@ class InteractiveSession:
     
     def _show_interactive_help(self) -> None:
         """Display help information for interactive mode."""
-        print("\n🔄 Interactive Mode Commands:")
-        print("=" * 40)
+        print("\nCommands:")
         for cmd, desc in INTERACTIVE_COMMANDS.items():
-            print(f"  {cmd:<12} - {desc}")
-        print("\n💡 Tips:")
-        print("  • Ask follow-up questions to refine commands")
-        print("  • Reference previous results in your queries")
-        print("  • Use natural language to build upon past commands")
-        print("=" * 40)
+            print(f"  {cmd} - {desc}")
     
     def _handle_session_command(self, user_input: str) -> bool:
         """
@@ -89,13 +83,12 @@ class InteractiveSession:
         command = user_input.strip().lower()
         
         if command in ['/exit', '/quit']:
-            print("👋 Exiting interactive session...")
             self.running = False
             return True
         
         elif command == '/clear':
             self.context.clear_context()
-            print("🧹 Context cleared! Starting fresh conversation.")
+            print("Context cleared.")
             return True
         
         elif command == '/history':
@@ -183,14 +176,14 @@ class InteractiveSession:
                         self.context.update_last_execution_status(True, True)
                         print()  # Add spacing after execution
                     else:
-                        print("👋 Command execution cancelled.")
+                        print("Cancelled.")
                         print()
                 except KeyboardInterrupt:
-                    print("\n\n👋 Operation cancelled by user.")
+                    print("\nCancelled.")
                     print()
             
         except KeyboardInterrupt:
-            print("\n\n👋 Query cancelled by user.")
+            print("\nCancelled.")
         except Exception as e:
             print(f"➜ Error processing query: {str(e)}")
     
@@ -202,18 +195,12 @@ class InteractiveSession:
             User input string or None if interrupted
         """
         try:
-            # Show context summary if not empty
-            if not self.context.is_empty():
-                print(f"\n{self.context.get_context_summary()}")
-            
-            # Interactive prompt
-            mode_indicator = "⚡" if self.execute_mode else "➜"
-            prompt = f"\n{mode_indicator} Follow-up query (or /help for commands): "
-            
+            # Simple prompt - no context summary or extra info
+            prompt = "\nFollow-up: "
             return input(prompt).strip()
             
         except (KeyboardInterrupt, EOFError):
-            print("\n👋 Session interrupted.")
+            print("\n")
             return None
     
     def start_session(self, initial_query: str = "") -> None:
@@ -227,15 +214,10 @@ class InteractiveSession:
         if not self._setup_ai_generator():
             return
         
-        # Welcome message
-        mode_desc = "with execution" if self.execute_mode else "(generation only)"
-        print(f"\n🚀 Starting interactive session {mode_desc}")
-        print(f"📝 Context limit: {self.context.context_limit} queries")
-        print("💡 Type /help for commands, /exit to quit")
+        # Minimal startup - no verbose welcome messages
         
         # Process initial query if provided
         if initial_query.strip():
-            print(f"\n➜ Initial query: {initial_query}")
             self._process_query(initial_query)
         
         # Main interactive loop
@@ -257,10 +239,7 @@ class InteractiveSession:
             # Process as query
             self._process_query(user_input)
         
-        # Session end message
-        if not self.context.is_empty():
-            print(f"\n📊 Session completed with {len(self.context.queries)} queries.")
-        print("👋 Interactive session ended.")
+        # Clean exit - no verbose end messages
 
 
 def start_interactive_session(args) -> NoReturn:
@@ -286,8 +265,8 @@ def start_interactive_session(args) -> NoReturn:
         session.start_session(initial_query)
         
     except KeyboardInterrupt:
-        print("\n\n👋 Interactive session cancelled by user.")
+        print("")
     except Exception as e:
-        print(f"➜ Error in interactive session: {str(e)}")
+        print(f"➜ Error: {str(e)}")
     finally:
         sys.exit(0)

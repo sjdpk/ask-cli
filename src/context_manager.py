@@ -134,28 +134,13 @@ class ConversationContext:
             Formatted history string for display
         """
         if not self.queries:
-            return "No query history in this session."
+            return "No history."
         
-        history_lines = [f"📝 Session History (showing last {len(self.queries)} queries):"]
-        history_lines.append("")
+        history_lines = []
         
         for i, ctx in enumerate(self.queries, 1):
-            # Format timestamp
-            try:
-                dt = datetime.fromisoformat(ctx.timestamp)
-                time_str = dt.strftime("%H:%M:%S")
-            except:
-                time_str = ctx.timestamp
-            
-            # Status icon
-            if ctx.executed:
-                status = "➜" if ctx.execution_successful else "➜"
-            else:
-                status = "➜"
-            
-            history_lines.append(f"{i:2d}. [{time_str}] {status} {ctx.query}")
-            history_lines.append(f"     → {ctx.command}")
-            history_lines.append("")
+            history_lines.append(f"{i}. {ctx.query}")
+            history_lines.append(f"   → {ctx.command}")
         
         return "\n".join(history_lines)
     
