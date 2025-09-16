@@ -61,6 +61,10 @@ def route_command(args) -> None:
             handle_reset()
         elif args.update:
             handle_update()
+        elif args.interactive:
+            # Handle interactive mode
+            from interactive import start_interactive_session
+            start_interactive_session(args)
         else:
             # Handle regular query
             query = ' '.join(args.query) if args.query else ''

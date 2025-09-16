@@ -43,6 +43,21 @@ SPINNER_CHARS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", 
 SPINNER_DELAY = 0.08  # seconds
 SPINNER_CLEAR_WIDTH = 20
 
+# Interactive mode configuration
+DEFAULT_CONTEXT_LIMIT = 5
+MIN_CONTEXT_LIMIT = 1
+MAX_CONTEXT_LIMIT = 20
+
+# Interactive session commands
+INTERACTIVE_COMMANDS = {
+    '/exit': 'Exit interactive session',
+    '/quit': 'Exit interactive session', 
+    '/clear': 'Clear conversation context',
+    '/history': 'Show query history',
+    '/help': 'Show interactive help',
+    '/last': 'Re-run last command'
+}
+
 # Help text
 HELP_TEXT = f"""
 {APP_NAME} - {APP_DESCRIPTION}
@@ -50,21 +65,30 @@ HELP_TEXT = f"""
 Usage:
   {APP_NAME} <what you want to do>
   {APP_NAME} --execute <what you want to do>
+  {APP_NAME} --interactive <what you want to do>
   {APP_NAME} --execute --force <what you want to do>
 
 Examples:
-  {APP_NAME} list all files           → ls -la
-  {APP_NAME} check disk space         → df -h
-  {APP_NAME} find text in files       → grep -r "text" .
-  {APP_NAME} kill port 3000          → lsof -ti:3000 | xargs kill -9
-  {APP_NAME} compress folder         → tar -czf archive.tar.gz .
+  {APP_NAME} list all files                    → ls -la
+  {APP_NAME} check disk space                  → df -h
+  {APP_NAME} find text in files                → grep -r "text" .
+  {APP_NAME} kill port 3000                   → lsof -ti:3000 | xargs kill -9
+  {APP_NAME} compress folder                  → tar -czf archive.tar.gz .
+  {APP_NAME} --interactive find large files   → Start interactive session
+  {APP_NAME} -i --context-limit 3 list files  → Interactive with 3-query limit
 
 Options:
-  -e, --execute   Execute the generated command (with confirmation)
-  -f, --force     Force execution without confirmation (must be used with -e)
-  --help          Show this help
-  --reset         Reset API key
-  --update        Update {APP_NAME} CLI to the latest version
+  -e, --execute      Execute the generated command (with confirmation)
+  -f, --force        Force execution without confirmation (must be used with -e)
+  -i, --interactive  Enable interactive mode for follow-up queries
+  --context-limit N  Set max number of previous queries to remember (default: 5)
+  --help            Show this help
+  --reset           Reset API key
+  --update          Update {APP_NAME} CLI to the latest version
+
+Interactive Mode:
+  In interactive mode, you can ask follow-up questions and refine commands.
+  Use /exit to quit, /clear to reset context, /history to see past queries.
 
 Safety:
   {APP_NAME.title()} CLI automatically detects potentially dangerous commands and shows

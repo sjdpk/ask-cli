@@ -69,6 +69,21 @@ class AskArgumentParser:
             help='Force execution without confirmation (requires --execute)'
         )
         
+        # Interactive mode flags
+        self.parser.add_argument(
+            '-i', '--interactive',
+            action='store_true',
+            help='Enable interactive mode for follow-up queries'
+        )
+        
+        self.parser.add_argument(
+            '--context-limit',
+            type=int,
+            default=5,
+            metavar='N',
+            help='Set max number of previous queries to remember (default: 5)'
+        )
+        
         # Query (remaining arguments)
         self.parser.add_argument(
             'query',
@@ -126,10 +141,21 @@ class AskArgumentParser:
         if args.force and not args.execute:
             errors.append("--force flag requires --execute flag")
         
-        # Special commands shouldn't have queries
+        # Context limit validation
+        if args.context_limit < 1 or args.context_limit > 20:
+            errors.append("--context-limit must be between 1 and 20")
+        
+        # Interactive mode validations
+        if args.interactive and args.force:
+            errors.append("--interactive mode cannot be used with --force flag")
+        
+        # Special commands shouldn't have queries or interactive mode
         special_commands = [args.help, args.reset, args.update]
         if any(special_commands) and args.query:
             errors.append("Special commands (--help, --reset, --update) cannot be combined with queries")
+        
+        if any(special_commands) and args.interactive:
+            errors.append("Special commands cannot be used with --interactive mode")
         
         # Multiple special commands
         if sum(bool(cmd) for cmd in special_commands) > 1:
@@ -152,12 +178,14 @@ class AskArgumentParser:
         """
         return """Usage: ask <what you want to do>
        ask --execute <what you want to do>
+       ask --interactive <what you want to do>
        ask --help
 
 Examples:
-  ask list all files           → Generate: ls -la
-  ask --execute check disk     → Generate and run: df -h
-  ask --execute --force kill port 3000  → Force run: lsof -ti:3000 | xargs kill -9
+  ask list all files                    → Generate: ls -la
+  ask --execute check disk              → Generate and run: df -h
+  ask --interactive find large files    → Start interactive session
+  ask -i --context-limit 3 list files  → Interactive with 3-query limit
 
 Try: ask --help for more information"""
 

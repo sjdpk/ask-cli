@@ -56,6 +56,42 @@ class CommandGenerator:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize AI model: {str(e)}") from e
     
+    def get_command_with_context(self, query: str, context) -> str:
+        """
+        Generate terminal command with conversation context for follow-up queries.
+        
+        Processes a follow-up query using conversation context to generate
+        more relevant and contextually aware commands.
+        
+        Args:
+            query: Natural language description of the desired action
+            context: ConversationContext object with query history
+            
+        Returns:
+            Generated command string or error message
+            
+        Side Effects:
+            May print retry status messages during network issues
+        """
+        if not query or not query.strip():
+            return "➜ Please provide a valid query"
+            
+        try:
+            username = getpass.getuser()
+            prompt = self._build_contextual_prompt(username, query, context)
+            
+            # Use the same generation logic as regular queries
+            return self._generate_with_retries(prompt)
+            
+        except KeyboardInterrupt:
+            return "➜ Operation cancelled by user"
+        except Exception as e:
+            error_str = str(e).lower()
+            if "permission" in error_str:
+                return "➜ Permission denied. Please check your system permissions."
+            else:
+                return f"➜ Unexpected error: {str(e)}"
+    
     def get_command(self, query: str) -> str:
         """
         Generate terminal command from natural language query.
@@ -79,54 +115,8 @@ class CommandGenerator:
             username = getpass.getuser()
             prompt = self._build_prompt(username, query)
             
-            # Attempt to generate content with retries
-            retry_delay = INITIAL_RETRY_DELAY
-            
-            for attempt in range(MAX_API_RETRIES):
-                try:
-                    response = self.model.generate_content(
-                        prompt,
-                        generation_config=genai.GenerationConfig(
-                            temperature=AI_TEMPERATURE,
-                            max_output_tokens=AI_MAX_OUTPUT_TOKENS
-                        )
-                    )
-                    
-                    if response and response.text:
-                        return response.text.strip()
-                    else:
-                        return "➜ AI service returned empty response. Please try again."
-                        
-                except Exception as e:
-                    error_str = str(e).lower()
-                    
-                    # Handle specific API errors with user-friendly messages
-                    if "api_key" in error_str or "authentication" in error_str or "invalid" in error_str:
-                        return f"➜ {ERROR_MESSAGES['api_key_invalid']}"
-                    elif "quota" in error_str or "limit" in error_str:
-                        return f"➜ {ERROR_MESSAGES['quota_exceeded']}"
-                    elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
-                        if attempt < MAX_API_RETRIES - 1:
-                            print(f"🔄 Network issue, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
-                            time.sleep(retry_delay)
-                            retry_delay *= 2  # Exponential backoff
-                            continue
-                        return "➜ Network connection failed. Please check your internet connection and try again."
-                    elif "rate" in error_str:
-                        if attempt < MAX_API_RETRIES - 1:
-                            print(f"⏳ Rate limited, waiting... (attempt {attempt + 1}/{MAX_API_RETRIES})")
-                            time.sleep(retry_delay * 2)
-                            retry_delay *= 2
-                            continue
-                        return f"➜ {ERROR_MESSAGES['rate_limited']}"
-                    else:
-                        if attempt < MAX_API_RETRIES - 1:
-                            print(f"⚠️ Request failed, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
-                            time.sleep(retry_delay)
-                            continue
-                        return f"➜ AI service error: {str(e)}"
-            
-            return "➜ Failed to generate command after multiple attempts. Please try again later."
+            # Use shared generation logic
+            return self._generate_with_retries(prompt)
             
         except KeyboardInterrupt:
             return "➜ Operation cancelled by user"
@@ -136,6 +126,129 @@ class CommandGenerator:
                 return "➜ Permission denied. Please check your system permissions."
             else:
                 return f"➜ Unexpected error: {str(e)}"
+    
+    def _generate_with_retries(self, prompt: str) -> str:
+        """
+        Generate content with retry logic and error handling.
+        
+        Shared method for both regular and contextual command generation
+        with comprehensive retry and error handling logic.
+        
+        Args:
+            prompt: The formatted prompt to send to the AI
+            
+        Returns:
+            Generated response or error message
+        """
+        retry_delay = INITIAL_RETRY_DELAY
+        
+        for attempt in range(MAX_API_RETRIES):
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=genai.GenerationConfig(
+                        temperature=AI_TEMPERATURE,
+                        max_output_tokens=AI_MAX_OUTPUT_TOKENS
+                    )
+                )
+                
+                if response and response.text:
+                    return response.text.strip()
+                else:
+                    return "➜ AI service returned empty response. Please try again."
+                    
+            except Exception as e:
+                error_str = str(e).lower()
+                
+                # Handle specific API errors with user-friendly messages
+                if "api_key" in error_str or "authentication" in error_str or "invalid" in error_str:
+                    return f"➜ {ERROR_MESSAGES['api_key_invalid']}"
+                elif "quota" in error_str or "limit" in error_str:
+                    return f"➜ {ERROR_MESSAGES['quota_exceeded']}"
+                elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
+                    if attempt < MAX_API_RETRIES - 1:
+                        print(f"🔄 Network issue, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    return "➜ Network connection failed. Please check your internet connection and try again."
+                elif "rate" in error_str:
+                    if attempt < MAX_API_RETRIES - 1:
+                        print(f"⏳ Rate limited, waiting... (attempt {attempt + 1}/{MAX_API_RETRIES})")
+                        time.sleep(retry_delay * 2)
+                        retry_delay *= 2
+                        continue
+                    return f"➜ {ERROR_MESSAGES['rate_limited']}"
+                else:
+                    if attempt < MAX_API_RETRIES - 1:
+                        print(f"⚠️ Request failed, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
+                        time.sleep(retry_delay)
+                        continue
+                    return f"➜ AI service error: {str(e)}"
+        
+        return "➜ Failed to generate command after multiple attempts. Please try again later."
+    
+    def _build_contextual_prompt(self, username: str, query: str, context) -> str:
+        """
+        Build AI prompt with conversation context for follow-up queries.
+        
+        Creates a contextually-aware prompt that includes previous conversation
+        history to help the AI understand follow-up and refinement requests.
+        
+        Args:
+            username: Current system username for personalization
+            query: User's current query
+            context: ConversationContext object with query history
+            
+        Returns:
+            Formatted contextual prompt string for the AI model
+        """
+        base_prompt = self._build_prompt(username, query)
+        
+        # Get context information
+        context_info = context.get_context_for_ai()
+        
+        if not context_info:
+            # No context available, use regular prompt
+            return base_prompt
+        
+        # Insert context into the prompt
+        contextual_prompt = f"""You are a CLI/terminal command expert. This is a follow-up query in an ongoing conversation.
+
+{context_info}
+{username}: {query}
+
+System: {self.os_name}
+
+Rules:
+1. This is a FOLLOW-UP query - consider the previous conversation context
+2. The user may be asking to modify, refine, or build upon previous commands
+3. Look for relationships like "make it better", "add to that", "but also", "instead", etc.
+4. ONLY respond to queries that can be solved with terminal/CLI commands
+5. If the query is NOT about terminal commands, respond with: "Out of context - this is not a terminal command request"
+6. Give the command on first line starting with →
+7. If explanation needed, add ONE line comment (max 15 words)
+8. For potentially dangerous commands, add: ⚠️ [brief risk description]
+9. Multiple steps: use && or ; on same line
+10. Be extremely concise - terminal users want speed
+
+IMPORTANT: Consider these as potentially dangerous and add warnings:
+- File/directory deletion (rm, rmdir with wildcards or recursive flags)
+- System modifications (sudo commands, chmod 777, ownership changes)
+- Disk operations (dd, mkfs, fdisk, partitioning)
+- Network code execution (curl|sh, wget|bash)
+- Process termination (killall, kill -9)
+- System control (shutdown, reboot, halt)
+- Database operations (DROP, TRUNCATE)
+- Overwriting files (>, redirects to important files)
+
+Format:
+→ command
+(optional: super brief note or warning)
+
+NEVER add extra line breaks. Keep output compact."""
+        
+        return contextual_prompt
     
     def _build_prompt(self, username: str, query: str) -> str:
         """
