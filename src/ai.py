@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
-"""AI client for command generation"""
+"""
+AI client for command generation
+
+This module handles all interactions with the AI service for generating
+terminal commands from natural language queries.
+"""
 
 import getpass
 import time
-from config import AI_MODEL, get_os_name
+from typing import Optional
+
+# Import local modules
+from config import get_os_name
+from constants import (
+    AI_MODEL, AI_TEMPERATURE, AI_MAX_OUTPUT_TOKENS, MAX_API_RETRIES,
+    INITIAL_RETRY_DELAY, ERROR_MESSAGES
+)
 
 # Import google.generativeai with error handling
 try:
@@ -13,10 +25,27 @@ except ImportError as e:
 
 
 class CommandGenerator:
-    """AI-powered command generator with comprehensive error handling"""
+    """
+    AI-powered command generator with comprehensive error handling.
     
-    def __init__(self, api_key):
-        """Initialize the command generator with API key validation"""
+    This class manages interactions with the AI service to convert natural
+    language queries into appropriate terminal commands for the user's system.
+    """
+    
+    def __init__(self, api_key: str):
+        """
+        Initialize the command generator with API key validation.
+        
+        Sets up the AI model configuration and validates the provided API key
+        for secure communication with the AI service.
+        
+        Args:
+            api_key: Valid API key for the AI service
+            
+        Raises:
+            ValueError: If API key is empty or None
+            RuntimeError: If AI model initialization fails
+        """
         if not api_key or not api_key.strip():
             raise ValueError("API key is required and cannot be empty")
             
@@ -27,8 +56,22 @@ class CommandGenerator:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize AI model: {str(e)}") from e
     
-    def get_command(self, query):
-        """Generate terminal command from natural language query with comprehensive error handling"""
+    def get_command(self, query: str) -> str:
+        """
+        Generate terminal command from natural language query.
+        
+        Processes a natural language query and generates an appropriate terminal
+        command using AI, with retry logic and comprehensive error handling.
+        
+        Args:
+            query: Natural language description of the desired action
+            
+        Returns:
+            Generated command string or error message
+            
+        Side Effects:
+            May print retry status messages during network issues
+        """
         if not query or not query.strip():
             return "➜ Please provide a valid query"
             
@@ -37,16 +80,15 @@ class CommandGenerator:
             prompt = self._build_prompt(username, query)
             
             # Attempt to generate content with retries
-            max_retries = 3
-            retry_delay = 1
+            retry_delay = INITIAL_RETRY_DELAY
             
-            for attempt in range(max_retries):
+            for attempt in range(MAX_API_RETRIES):
                 try:
                     response = self.model.generate_content(
                         prompt,
                         generation_config=genai.GenerationConfig(
-                            temperature=0.1,      # More deterministic
-                            max_output_tokens=150 # Keep responses short
+                            temperature=AI_TEMPERATURE,
+                            max_output_tokens=AI_MAX_OUTPUT_TOKENS
                         )
                     )
                     
@@ -60,26 +102,26 @@ class CommandGenerator:
                     
                     # Handle specific API errors with user-friendly messages
                     if "api_key" in error_str or "authentication" in error_str or "invalid" in error_str:
-                        return "➜ Invalid API key. Run 'ask --reset' to update your API key."
+                        return f"➜ {ERROR_MESSAGES['api_key_invalid']}"
                     elif "quota" in error_str or "limit" in error_str:
-                        return "➜ API quota exceeded. Please check your Google AI Studio quota or try again later."
+                        return f"➜ {ERROR_MESSAGES['quota_exceeded']}"
                     elif "network" in error_str or "connection" in error_str or "timeout" in error_str:
-                        if attempt < max_retries - 1:
-                            print(f"🔄 Network issue, retrying... (attempt {attempt + 1}/{max_retries})")
+                        if attempt < MAX_API_RETRIES - 1:
+                            print(f"🔄 Network issue, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
                             time.sleep(retry_delay)
                             retry_delay *= 2  # Exponential backoff
                             continue
                         return "➜ Network connection failed. Please check your internet connection and try again."
                     elif "rate" in error_str:
-                        if attempt < max_retries - 1:
-                            print(f"⏳ Rate limited, waiting... (attempt {attempt + 1}/{max_retries})")
+                        if attempt < MAX_API_RETRIES - 1:
+                            print(f"⏳ Rate limited, waiting... (attempt {attempt + 1}/{MAX_API_RETRIES})")
                             time.sleep(retry_delay * 2)
                             retry_delay *= 2
                             continue
-                        return "➜ Too many requests. Please wait a moment and try again."
+                        return f"➜ {ERROR_MESSAGES['rate_limited']}"
                     else:
-                        if attempt < max_retries - 1:
-                            print(f"⚠️ Request failed, retrying... (attempt {attempt + 1}/{max_retries})")
+                        if attempt < MAX_API_RETRIES - 1:
+                            print(f"⚠️ Request failed, retrying... (attempt {attempt + 1}/{MAX_API_RETRIES})")
                             time.sleep(retry_delay)
                             continue
                         return f"➜ AI service error: {str(e)}"
@@ -95,8 +137,20 @@ class CommandGenerator:
             else:
                 return f"➜ Unexpected error: {str(e)}"
     
-    def _build_prompt(self, username, query):
-        """Build the AI prompt for command generation"""
+    def _build_prompt(self, username: str, query: str) -> str:
+        """
+        Build the AI prompt for command generation.
+        
+        Constructs a detailed prompt that instructs the AI on how to generate
+        appropriate terminal commands with safety considerations and formatting.
+        
+        Args:
+            username: Current system username for personalization
+            query: User's natural language query
+            
+        Returns:
+            Formatted prompt string for the AI model
+        """
         return f"""You are a CLI/terminal command expert. Provide ONLY the exact command needed.
 
 System: {self.os_name}

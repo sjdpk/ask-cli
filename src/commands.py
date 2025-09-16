@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Command handlers for ask CLI"""
+"""
+Command handlers for ask CLI
+
+This module contains all command handler functions that implement the core
+functionality of the ask CLI tool, including help, reset, update, and query processing.
+"""
 
 import sys
 import subprocess
@@ -7,63 +12,72 @@ import os
 import shutil
 import tempfile
 import time
+from typing import Dict, Any, Optional, NoReturn
+
+# Import local modules
 from config import load_api_key, setup_api_key, reset_config
 from ai import CommandGenerator
 from ui import SpinnerContext
-
-# Help text
-HELP_TEXT = """
-ask - instant terminal commands
-
-Usage:
-  ask <what you want to do>
-  ask --execute <what you want to do>
-  ask --execute --force <what you want to do>
-
-Examples:
-  ask list all files           → ls -la
-  ask check disk space         → df -h
-  ask find text in files       → grep -r "text" .
-  ask kill port 3000          → lsof -ti:3000 | xargs kill -9
-  ask compress folder         → tar -czf archive.tar.gz .
-
-Options:
-  -e, --execute   Execute the generated command (with confirmation)
-  -f, --force     Force execution without confirmation (must be used with -e)
-  --help          Show this help
-  --reset         Reset API key
-  --update        Update ask CLI to the latest version
-
-Safety:
-  Ask CLI automatically detects potentially dangerous commands and shows
-  warnings before execution to help protect your system and data.
-"""
+from constants import (
+    HELP_TEXT, ERROR_MESSAGES, SUCCESS_MESSAGES, DANGEROUS_COMMAND_PATTERNS,
+    INSTALL_DIR, ASK_SCRIPT_PATH, MAX_COMMAND_LENGTH, MAX_CONFIRMATION_ATTEMPTS,
+    PROCESS_TERMINATION_TIMEOUT, GITHUB_REPO
+)
 
 
-def handle_help():
-    """Display help information"""
+def handle_help() -> NoReturn:
+    """
+    Display comprehensive help information for the ask CLI.
+    
+    Shows usage instructions, examples, options, and safety information
+    to help users understand how to use the tool effectively.
+    
+    Raises:
+        SystemExit: Always exits with code 0 after displaying help
+    """
     print(HELP_TEXT)
     sys.exit(0)
 
 
-def handle_reset():
-    """Reset API key configuration"""
+def handle_reset() -> NoReturn:
+    """
+    Reset API key configuration to allow fresh setup.
+    
+    Delegates to the config module to remove existing configuration
+    and allows the user to set up a new API key.
+    
+    Raises:
+        SystemExit: Always exits with code 0 after reset
+    """
     reset_config()
     sys.exit(0)
 
 
-def show_update_spinner():
-    """Show a dynamic spinner for update process with changing text"""
+def show_update_spinner() -> 'UpdateSpinner':
+    """
+    Create and return a dynamic spinner for update process with changing text.
+    
+    Provides a specialized spinner that can update its display text during
+    long-running update operations to keep users informed of progress.
+    
+    Returns:
+        UpdateSpinner instance ready to use
+    """
     import threading
+    from constants import SPINNER_CHARS, SPINNER_DELAY
     
     class UpdateSpinner:
+        """Dynamic spinner with changeable text for update operations."""
+        
         def __init__(self):
-            self.spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+            """Initialize the update spinner with default settings."""
+            self.spinner_chars = SPINNER_CHARS
             self.current_text = "Loading"
             self.stop_event = threading.Event()
-            self.spinner_thread = None
+            self.spinner_thread: Optional[threading.Thread] = None
             
-        def _spin(self):
+        def _spin(self) -> None:
+            """Internal method to run the spinner animation."""
             i = 0
             while not self.stop_event.is_set():
                 char = self.spinner_chars[i % len(self.spinner_chars)]
@@ -71,15 +85,28 @@ def show_update_spinner():
                 time.sleep(0.1)
                 i += 1
                 
-        def start(self):
+        def start(self) -> None:
+            """Start the spinner animation in a separate thread."""
             self.spinner_thread = threading.Thread(target=self._spin)
             self.spinner_thread.daemon = True
             self.spinner_thread.start()
             
-        def update_text(self, new_text):
+        def update_text(self, new_text: str) -> None:
+            """
+            Update the spinner display text.
+            
+            Args:
+                new_text: New text to display with the spinner
+            """
             self.current_text = new_text
             
-        def stop(self, final_text="Complete"):
+        def stop(self, final_text: str = "Complete") -> None:
+            """
+            Stop the spinner and display final message.
+            
+            Args:
+                final_text: Final text to display when stopping
+            """
             self.stop_event.set()
             if self.spinner_thread:
                 self.spinner_thread.join(timeout=0.3)
@@ -88,8 +115,21 @@ def show_update_spinner():
     return UpdateSpinner()
 
 
-def validate_command_safety(ai_response):
-    """Check if AI response contains safety warnings"""
+def validate_command_safety(ai_response: str) -> Dict[str, Any]:
+    """
+    Check if AI response contains safety warnings or dangerous patterns.
+    
+    Analyzes the AI response to identify potentially dangerous commands
+    and extracts warning messages for user notification.
+    
+    Args:
+        ai_response: The complete AI response text to analyze
+        
+    Returns:
+        Dictionary containing:
+        - 'is_dangerous': Boolean indicating if command is potentially dangerous
+        - 'warning': Warning message if dangerous, otherwise not present
+    """
     lines = ai_response.strip().split('\n')
     
     for line in lines:
@@ -104,8 +144,22 @@ def validate_command_safety(ai_response):
     return {'is_dangerous': False}
 
 
-def handle_update():
-    """Update ask CLI to the latest version with comprehensive error handling"""
+def handle_update() -> NoReturn:
+    """
+    Update ask CLI to the latest version with comprehensive error handling.
+    
+    Downloads and installs the latest version of the ask CLI from the GitHub
+    repository, with backup and recovery mechanisms for safe updates.
+    
+    Raises:
+        SystemExit: Always exits after update completion or failure
+        
+    Side Effects:
+        - Creates temporary directories for download
+        - Modifies installation directory
+        - Updates executable script
+        - Shows progress spinner
+    """
     try:
         # Check if git is available
         if not shutil.which('git'):
@@ -114,7 +168,7 @@ def handle_update():
             sys.exit(1)
         
         # Get the installation directory
-        install_dir = os.path.expanduser("~/.local/bin/ask-src")
+        install_dir = INSTALL_DIR
         
         if not os.path.exists(install_dir):
             print("➜ Installation directory not found. Please reinstall using:")
@@ -247,8 +301,24 @@ def handle_update():
     sys.exit(0)
 
 
-def get_user_confirmation(command, ai_response):
-    """Ask user for confirmation before executing a command with comprehensive error handling"""
+def get_user_confirmation(command: str, ai_response: str) -> bool:
+    """
+    Ask user for confirmation before executing a potentially dangerous command.
+    
+    Presents the command to the user and requests confirmation, with special
+    handling for commands that have been flagged as potentially dangerous.
+    
+    Args:
+        command: The command string to be executed
+        ai_response: Full AI response containing potential warnings
+        
+    Returns:
+        True if user confirms execution, False otherwise
+        
+    Side Effects:
+        Prints command and warning information to stdout
+        Reads user input from stdin
+    """
     try:
         print(f"\nGenerated command: {command}")
         
@@ -317,8 +387,21 @@ def get_user_confirmation(command, ai_response):
         return False
 
 
-def execute_command(command):
-    """Execute a shell command with comprehensive error handling"""
+def execute_command(command: str) -> None:
+    """
+    Execute a shell command with comprehensive error handling and safety checks.
+    
+    Runs the provided command in a subprocess with timeout handling,
+    output streaming, and graceful interruption support.
+    
+    Args:
+        command: The shell command string to execute
+        
+    Side Effects:
+        - Executes system command
+        - Prints command output to stdout
+        - May terminate processes on interruption
+    """
     if not command or not command.strip():
         print("➜ No command to execute.")
         return
@@ -327,8 +410,8 @@ def execute_command(command):
     
     try:
         # Validate command before execution
-        if len(command) > 1000:
-            print("➜ Command too long. Execution cancelled for safety.")
+        if len(command) > MAX_COMMAND_LENGTH:
+            print(f"➜ {ERROR_MESSAGES['command_too_long']}")
             return
             
         # Start the process with timeout
@@ -394,8 +477,23 @@ def execute_command(command):
         print(f"➜ Error preparing command execution: {str(e)}")
 
 
-def handle_query(query, execute=False, force=False):
-    """Process user query and generate command with comprehensive error handling"""
+def handle_query(query: str, execute: bool = False, force: bool = False) -> None:
+    """
+    Process user query and generate appropriate terminal command.
+    
+    Takes a natural language query, generates a terminal command using AI,
+    and optionally executes it based on user flags and confirmation.
+    
+    Args:
+        query: Natural language description of desired action
+        execute: Whether to execute the generated command
+        force: Whether to skip confirmation (requires execute=True)
+        
+    Side Effects:
+        - Calls AI service for command generation
+        - May execute system commands
+        - Prints results and status messages
+    """
     if not query or not query.strip():
         print("➜ Please provide a valid query.")
         return
