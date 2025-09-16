@@ -266,7 +266,7 @@ def handle_update() -> NoReturn:
                             if os.path.exists(install_dir):
                                 shutil.rmtree(install_dir)
                             shutil.move(backup_dir, install_dir)
-                            print("✅ Backup restored successfully.")
+                            print("➜ Backup restored successfully.")
                         except Exception:
                             print("⚠️ Could not restore backup. Please reinstall manually.")
                     sys.exit(1)
@@ -441,7 +441,7 @@ def execute_command(command: str) -> None:
                         # Force kill if it doesn't terminate gracefully
                         process.kill()
                         process.wait()
-                    print("✅ Process terminated successfully.")
+                    print("➜ Process terminated successfully.")
                 except Exception as e:
                     print(f"➜ Error terminating process: {str(e)}")
                 return
@@ -450,7 +450,7 @@ def execute_command(command: str) -> None:
             return_code = process.wait()
 
             if return_code == 0:
-                print("\n✅ Command executed successfully.")
+                print("\n➜ Command executed successfully.")
             else:
                 print(f"\n➜ Command failed with exit code {return_code}.")
                 

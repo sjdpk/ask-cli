@@ -91,10 +91,10 @@ ERROR_MESSAGES = {
 # Success messages
 SUCCESS_MESSAGES = {
     'setup_complete': "✨ Setup complete! You're ready to go.",
-    'reset_complete': f"✅ Reset complete. Run '{APP_NAME}' again to set up.",
+    'reset_complete': f"➜ Reset complete. Run '{APP_NAME}' again to set up.",
     'update_complete': f"Ask CLI updated successfully",
-    'command_success': "✅ Command executed successfully.",
-    'process_terminated': "✅ Process terminated successfully."
+    'command_success': "➜ Command executed successfully.",
+    'process_terminated': "➜ Process terminated successfully."
 }
 
 # Warning prefixes for dangerous commands

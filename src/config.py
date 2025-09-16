@@ -205,7 +205,7 @@ def setup_api_key() -> str:
                 if test_api_key(key):
                     try:
                         save_api_key(key)
-                        print(" ✅\n")
+                        print(" ➜\n")
                         print(f"{SUCCESS_MESSAGES['setup_complete']}\n")
                         return key
                     except Exception as e:
