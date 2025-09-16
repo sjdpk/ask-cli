@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
-"""Configuration management for ask CLI"""
+"""
+Configuration management for ask CLI
+
+This module handles all configuration-related operations including API key
+management, storage, validation, and user setup processes.
+"""
 
 import os
 import sys
 import json
 import platform
 from pathlib import Path
+from typing import Optional
+
+# Import constants
+from constants import (
+    CONFIG_FILE, AI_MODEL, CONFIG_FILE_PERMISSIONS, OS_NAME_MAP,
+    API_KEY_URL, MAX_SETUP_ATTEMPTS, ERROR_MESSAGES, SUCCESS_MESSAGES,
+    AI_TEST_PROMPT, AI_TEST_MAX_TOKENS
+)
 
 try:
     import google.generativeai as genai
@@ -14,23 +27,33 @@ except ImportError:
     os.system(f"{sys.executable} -m pip install -q google-generativeai")
     import google.generativeai as genai
 
-# Configuration constants
-CONFIG_FILE = Path.home() / '.ask_config.json'
-AI_MODEL = 'gemini-2.0-flash-exp'
+
+def get_os_name() -> str:
+    """
+    Get user-friendly operating system name.
+    
+    Maps the system platform identifier to a human-readable OS name
+    for display purposes and system-specific command generation.
+    
+    Returns:
+        Human-readable operating system name (e.g., 'macOS', 'Linux', 'Windows')
+    """
+    return OS_NAME_MAP.get(platform.system().lower(), platform.system())
 
 
-def get_os_name():
-    """Get user-friendly OS name"""
-    os_map = {
-        'darwin': 'macOS',
-        'linux': 'Linux', 
-        'windows': 'Windows'
-    }
-    return os_map.get(platform.system().lower(), platform.system())
-
-
-def load_api_key():
-    """Load API key from config file with comprehensive error handling"""
+def load_api_key() -> Optional[str]:
+    """
+    Load API key from configuration file.
+    
+    Attempts to read and validate the API key from the user's configuration
+    file, with comprehensive error handling for various failure scenarios.
+    
+    Returns:
+        API key string if found and valid, None otherwise
+        
+    Side Effects:
+        May print error messages to stdout for user feedback
+    """
     if not CONFIG_FILE.exists():
         return None
         
@@ -45,7 +68,7 @@ def load_api_key():
         print("➜ Permission denied accessing config file. Please check file permissions.")
         return None
     except json.JSONDecodeError:
-        print("⚠️ Config file corrupted. Run 'ask --reset' to fix.")
+        print(f"⚠️ {ERROR_MESSAGES['config_corrupted']}")
         return None
     except (OSError, IOError) as e:
         print(f"➜ Error reading config file: {str(e)}")
@@ -55,8 +78,22 @@ def load_api_key():
         return None
 
 
-def save_api_key(api_key):
-    """Save API key to config file with comprehensive error handling"""
+def save_api_key(api_key: str) -> None:
+    """
+    Save API key to configuration file with secure permissions.
+    
+    Stores the provided API key in the user's configuration file with
+    appropriate file permissions for security.
+    
+    Args:
+        api_key: The API key string to save
+        
+    Raises:
+        ValueError: If API key is empty or None
+        PermissionError: If unable to write to config file
+        OSError: If file system operations fail
+        RuntimeError: For other unexpected errors
+    """
     if not api_key or not api_key.strip():
         raise ValueError("API key cannot be empty")
         
@@ -71,7 +108,7 @@ def save_api_key(api_key):
         # Set secure permissions (Unix-like systems only)
         if platform.system().lower() != 'windows':
             try:
-                os.chmod(CONFIG_FILE, 0o600)
+                os.chmod(CONFIG_FILE, CONFIG_FILE_PERMISSIONS)
             except OSError as e:
                 print(f"⚠️ Warning: Could not set secure permissions on config file: {str(e)}")
                 
@@ -83,8 +120,22 @@ def save_api_key(api_key):
         raise RuntimeError(f"Unexpected error saving API key: {str(e)}")
 
 
-def test_api_key(api_key):
-    """Test if API key is valid with comprehensive error handling"""
+def test_api_key(api_key: str) -> bool:
+    """
+    Test if the provided API key is valid and working.
+    
+    Performs a lightweight API call to verify that the API key is valid
+    and can successfully communicate with the AI service.
+    
+    Args:
+        api_key: The API key string to test
+        
+    Returns:
+        True if the API key is valid and working, False otherwise
+        
+    Side Effects:
+        May print error messages for network or quota issues
+    """
     if not api_key or not api_key.strip():
         return False
         
@@ -92,10 +143,10 @@ def test_api_key(api_key):
         genai.configure(api_key=api_key.strip())
         test_model = genai.GenerativeModel(AI_MODEL)
         response = test_model.generate_content(
-            "respond with ok",
+            AI_TEST_PROMPT,
             generation_config=genai.GenerationConfig(
                 temperature=0,
-                max_output_tokens=10
+                max_output_tokens=AI_TEST_MAX_TOKENS
             )
         )
         return response and response.text and "ok" in response.text.lower()
@@ -115,18 +166,28 @@ def test_api_key(api_key):
             return False
 
 
-def setup_api_key():
-    """Interactive API key setup with comprehensive error handling"""
+def setup_api_key() -> str:
+    """
+    Interactive API key setup with comprehensive error handling.
+    
+    Guides the user through the process of obtaining and configuring
+    their API key, with validation and error recovery.
+    
+    Returns:
+        The validated API key string
+        
+    Raises:
+        SystemExit: On user cancellation or repeated failures
+    """
     try:
         print("\n🚀 Quick setup (30 seconds, one-time only)")
         print("\n1️⃣  Get your free API key:")
-        print("   https://makersuite.google.com/app/apikey")
+        print(f"   {API_KEY_URL}")
         print("   (Sign in → Create API Key → Copy)\n")
         
-        max_attempts = 5
         attempts = 0
         
-        while attempts < max_attempts:
+        while attempts < MAX_SETUP_ATTEMPTS:
             try:
                 key = input("2️⃣  Paste key here: ").strip()
                 if not key:
@@ -145,7 +206,7 @@ def setup_api_key():
                     try:
                         save_api_key(key)
                         print(" ✅\n")
-                        print("✨ Setup complete! You're ready to go.\n")
+                        print(f"{SUCCESS_MESSAGES['setup_complete']}\n")
                         return key
                     except Exception as e:
                         print(f" ➜\n   Error saving API key: {str(e)}")
@@ -164,7 +225,7 @@ def setup_api_key():
                 print(f"\n➜ Error during setup: {str(e)}")
                 attempts += 1
         
-        print(f"➜ Too many failed attempts ({max_attempts}). Please check your API key and try again later.")
+        print(f"➜ {ERROR_MESSAGES['setup_failed']}")
         sys.exit(1)
         
     except KeyboardInterrupt:
@@ -175,13 +236,24 @@ def setup_api_key():
         sys.exit(1)
 
 
-def reset_config():
-    """Reset API key configuration with comprehensive error handling"""
+def reset_config() -> None:
+    """
+    Reset API key configuration with comprehensive error handling.
+    
+    Removes the existing configuration file to allow the user to
+    set up a new API key from scratch.
+    
+    Raises:
+        SystemExit: On permission errors or other failures
+        
+    Side Effects:
+        Deletes the configuration file and prints status messages
+    """
     try:
         if CONFIG_FILE.exists():
             try:
                 CONFIG_FILE.unlink()
-                print("✅ Reset complete. Run 'ask' again to set up.")
+                print(f"{SUCCESS_MESSAGES['reset_complete']}")
             except PermissionError:
                 print("➜ Permission denied. Cannot delete config file.")
                 print("   Please manually delete:", CONFIG_FILE)
