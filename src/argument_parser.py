@@ -135,9 +135,11 @@ class AskArgumentParser:
         if sum(bool(cmd) for cmd in special_commands) > 1:
             errors.append("Only one special command can be used at a time")
         
-        # Query required for normal operation
+        # Query required for normal operation (but handle empty args gracefully)
         if not any(special_commands) and not args.query:
-            errors.append("Please provide a query or use a special command")
+            # If no arguments provided at all, this should be handled as a usage case
+            # rather than an error - let the main function handle this gracefully
+            pass
         
         return errors
     

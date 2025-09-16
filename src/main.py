@@ -63,7 +63,13 @@ def route_command(args) -> None:
             handle_update()
         else:
             # Handle regular query
-            query = ' '.join(args.query)
+            query = ' '.join(args.query) if args.query else ''
+            if not query.strip():
+                # No query provided, show usage
+                from argument_parser import AskArgumentParser
+                parser = AskArgumentParser()
+                print(parser.get_usage_message())
+                sys.exit(1)
             handle_query(query, args.execute, args.force)
             
     except ImportError as e:
