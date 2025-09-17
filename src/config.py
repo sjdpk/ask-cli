@@ -196,7 +196,7 @@ def setup_api_key() -> str:
                 
                 # Basic validation
                 if len(key) < 10:
-                    print("   ⚠️ API key seems too short. Please check and try again.\n")
+                    print("  ➜ API key seems too short. Please check and try again.\n")
                     attempts += 1
                     continue
                 
