@@ -45,7 +45,7 @@ $ ask compress this folder
 
 ## Installation
 
-### Quick Install
+### Quick Install (Recommended)
 
 ```bash
 # Download and install
@@ -62,6 +62,23 @@ cd ask-cli
 # Run installer
 ./install.sh
 ```
+
+### Uninstallation
+
+```bash
+# Quick uninstall
+curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/uninstall.sh | bash
+```
+
+Or manually:
+
+```bash
+# Remove CLI and all files
+rm ~/.local/bin/ask
+rm -rf ~/.ask-cli
+```
+
+**Note:** This preserves your API key configuration (`~/.ask_config.json`) unless you delete it manually.
 
 ## Usage
 

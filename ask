@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ask CLI entry point script"""
+"""Ask CLI entry point script - Development and fallback version"""
 
 import sys
 from pathlib import Path
@@ -10,28 +10,46 @@ def main_wrapper():
         # Add src directory to Python path
         script_dir = Path(__file__).parent.resolve()
         src_dir = script_dir / "src"
-        sys.path.insert(0, str(src_dir))
-
-        # Import and run main
-        try:
-            from main import main
-        except ImportError:
-            # Fallback for installed version
-            src_dir = Path.home() / ".local" / "bin" / "ask-src"
-            if not src_dir.exists():
-                print("➜ Ask CLI installation not found. Please reinstall using:")
-                print("   curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/install.sh | bash")
-                sys.exit(1)
+        
+        # Try local development version first
+        if src_dir.exists():
             sys.path.insert(0, str(src_dir))
             try:
                 from main import main
-            except ImportError as e:
-                print("➜ Failed to load Ask CLI components.")
-                print("   Please reinstall using the installation script.")
-                sys.exit(1)
-
-        # Run the main application
-        main()
+                main()
+                return
+            except ImportError:
+                pass
+        
+        # Fallback for installed version via virtual environment
+        venv_src_dir = Path.home() / ".ask-cli" / "src"
+        if venv_src_dir.exists():
+            sys.path.insert(0, str(venv_src_dir))
+            try:
+                from main import main
+                main()
+                return
+            except ImportError:
+                pass
+        
+        # Fallback for old user installation
+        old_src_dir = Path.home() / ".local" / "bin" / "ask-src"
+        if old_src_dir.exists():
+            sys.path.insert(0, str(old_src_dir))
+            try:
+                from main import main
+                main()
+                return
+            except ImportError:
+                pass
+        
+        # No valid installation found
+        print("➜ Ask CLI installation not found.")
+        print("   Please install using:")
+        print("   curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/install.sh | bash")
+        print("")
+        print("   Or for development, ensure you're in the project directory with 'src/' folder.")
+        sys.exit(1)
         
     except KeyboardInterrupt:
         print("\n\n👋 Operation cancelled by user.")

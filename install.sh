@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple installer for 'ask' command
+# Advanced installer for 'ask' command with virtual environment
 
 echo "Installing 'ask' command..."
 
@@ -16,57 +16,93 @@ if ! command -v git &>/dev/null; then
     exit 1
 fi
 
-# Clone repository to hidden folder
-INSTALL_DIR="$HOME/.ask-cli-install"
-echo "Cloning repository to $INSTALL_DIR..."
+# Define installation directories
+INSTALL_DIR="$HOME/.ask-cli"
+TEMP_DIR="/tmp/ask-cli-install-$$"
 
-# Remove existing installation directory if it exists
+echo "Setting up Ask CLI in $INSTALL_DIR..."
+
+# Remove existing installation if it exists
 if [ -d "$INSTALL_DIR" ]; then
+    echo "Removing existing installation..."
     rm -rf "$INSTALL_DIR"
 fi
 
-# Clone the repository
-if ! git clone https://github.com/sjdpk/ask-cli.git "$INSTALL_DIR" &>/dev/null; then
+# Create temporary directory for cloning
+mkdir -p "$TEMP_DIR"
+
+# Clone the repository to temporary location
+echo "Downloading Ask CLI..."
+if ! git clone https://github.com/sjdpk/ask-cli.git "$TEMP_DIR" &>/dev/null; then
     echo "Error: Failed to clone repository"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# Change to the cloned directory
-cd "$INSTALL_DIR"
-
-echo "Repository cloned successfully"
-
-# Check if ask script exists
-if [ ! -f "ask" ]; then
-    echo "Error: ask script not found in repository"
+# Check if required files exist
+if [ ! -f "$TEMP_DIR/ask" ] || [ ! -d "$TEMP_DIR/src" ]; then
+    echo "Error: Required files not found in repository"
+    rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# Check if src directory exists
-if [ ! -d "src" ]; then
-    echo "Error: src directory not found in repository"
+# Create the installation directory
+mkdir -p "$INSTALL_DIR"
+
+# Copy source files
+echo "Installing source files..."
+cp -r "$TEMP_DIR/src" "$INSTALL_DIR/"
+
+# Create virtual environment
+echo "Creating isolated Python environment..."
+if ! python3 -m venv "$INSTALL_DIR/venv" &>/dev/null; then
+    echo "Error: Failed to create virtual environment"
+    echo "Make sure python3-venv is installed:"
+    echo "  Ubuntu/Debian: sudo apt install python3-venv"
+    echo "  macOS: Should be included with Python 3"
+    rm -rf "$INSTALL_DIR" "$TEMP_DIR"
     exit 1
 fi
 
-# Install Python package
+# Install dependencies in virtual environment
 echo "Installing dependencies..."
-python3 -m pip install --user -q google-generativeai 2>/dev/null || {
-    echo "Note: You may need to install manually:"
-    echo "   pip3 install --user google-generativeai"
-}
+if ! "$INSTALL_DIR/venv/bin/pip" install google-generativeai &>/dev/null; then
+    echo "Warning: Failed to install google-generativeai"
+    echo "You may need to install it manually later:"
+    echo "  $INSTALL_DIR/venv/bin/pip install google-generativeai"
+fi
 
 # Create user's local bin directory
 mkdir -p ~/.local/bin
 
-# Copy files
-cp -r src ~/.local/bin/ask-src
-cp ask ~/.local/bin/ask
+# Create the wrapper script
+echo "Creating CLI wrapper..."
+cat > ~/.local/bin/ask << 'EOF'
+#!/bin/bash
+# Ask CLI wrapper script - activates virtual environment and runs the CLI
+
+# Define paths
+ASK_CLI_DIR="$HOME/.ask-cli"
+VENV_PYTHON="$ASK_CLI_DIR/venv/bin/python"
+SRC_DIR="$ASK_CLI_DIR/src"
+
+# Check if installation exists
+if [ ! -f "$VENV_PYTHON" ] || [ ! -d "$SRC_DIR" ]; then
+    echo "➜ Ask CLI installation not found or corrupted."
+    echo "   Please reinstall using:"
+    echo "   curl -sSL https://raw.githubusercontent.com/sjdpk/ask-cli/main/install.sh | bash"
+    exit 1
+fi
+
+# Change to source directory and run with virtual environment Python
+cd "$SRC_DIR"
+exec "$VENV_PYTHON" main.py "$@"
+EOF
+
 chmod +x ~/.local/bin/ask
 
-# Clean up the cloned repository
-echo "Cleaning up..."
-cd /
-rm -rf "$INSTALL_DIR"
+# Clean up temporary directory
+rm -rf "$TEMP_DIR"
 
 # Check if ~/.local/bin is in PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
@@ -101,7 +137,13 @@ fi
 echo "Quick start:"
 echo "   ask how to list files"
 echo ""
-echo "Installed to: ~/.local/bin/ask"
-echo "Config: ~/.ask_config.json (created on first use)"
+echo "Installation details:"
+echo "   CLI wrapper: ~/.local/bin/ask"
+echo "   Source code: ~/.ask-cli/src/"
+echo "   Virtual env: ~/.ask-cli/venv/"
+echo "   Config: ~/.ask_config.json (created on first use)"
+echo ""
+echo "To uninstall:"
+echo "   rm ~/.local/bin/ask && rm -rf ~/.ask-cli"
 echo ""
 echo "Help: ask --help"
