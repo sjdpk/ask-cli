@@ -10,8 +10,14 @@ import os
 import sys
 import json
 import platform
+import warnings
 from pathlib import Path
 from typing import Optional
+
+# Suppress Google AI warnings before importing google.generativeai
+os.environ['GRPC_VERBOSITY'] = 'ERROR'
+os.environ['GLOG_minloglevel'] = '2'
+warnings.filterwarnings('ignore', category=UserWarning, module='google')
 
 # Import constants
 from constants import (

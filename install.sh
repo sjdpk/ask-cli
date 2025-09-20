@@ -94,6 +94,10 @@ if [ ! -f "$VENV_PYTHON" ] || [ ! -d "$SRC_DIR" ]; then
     exit 1
 fi
 
+# Suppress Google AI warnings
+export GRPC_VERBOSITY=ERROR
+export GLOG_minloglevel=2
+
 # Change to source directory and run with virtual environment Python
 cd "$SRC_DIR"
 exec "$VENV_PYTHON" main.py "$@"

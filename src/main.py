@@ -7,7 +7,14 @@ handling argument parsing, command routing, and top-level error management.
 """
 
 import sys
+import os
+import warnings
 from typing import NoReturn
+
+# Suppress Google AI warnings that appear in virtual environment
+os.environ['GRPC_VERBOSITY'] = 'ERROR'
+os.environ['GLOG_minloglevel'] = '2'
+warnings.filterwarnings('ignore', category=UserWarning, module='google')
 
 # Import local modules
 from argument_parser import parse_cli_arguments

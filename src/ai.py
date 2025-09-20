@@ -8,7 +8,14 @@ terminal commands from natural language queries.
 
 import getpass
 import time
+import os
+import warnings
 from typing import Optional
+
+# Suppress Google AI warnings before importing google.generativeai
+os.environ['GRPC_VERBOSITY'] = 'ERROR'
+os.environ['GLOG_minloglevel'] = '2'
+warnings.filterwarnings('ignore', category=UserWarning, module='google')
 
 # Import local modules
 from config import get_os_name
